@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celestoria - Orbital Mechanics Simulator</title>
+    <link rel="stylesheet" href="asteroid.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div class="main-nav">
+        <a href="index.html" class="active">Asteroid Sim</a>
+        <a href="seismic.html">Seismic Impact</a>
+        <a href="tsunami.html">Tsunami Sim</a>
+    </div>
+    
+    <div id="loading">
+        <div class="spinner"></div>
+        <div style="text-align: center;">Initializing Celestoria...</div>
+    </div>
+
+    <div id="top-bar">
+        <div class="logo">CELESTORIA</div>
+        <div class="status-indicators">
+            <div class="status-item">
+                <span class="status-label">SIM TIME:</span>
+                <span id="sim-time-display">0.0 days</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">OBJECTS:</span>
+                <span id="object-count">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <div class="sidebar-icon" data-panel="controls">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <span class="icon-tooltip">Simulation Controls</span>
+        </div>
+
+        <div class="sidebar-icon" data-panel="mitigation">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 10 12 6.16-1.26 10-6.45 10-12V5l-10-4z"/></svg>
+            <span class="icon-tooltip">Deflection Methods</span>
+        </div>
+        
+        <div class="sidebar-icon" data-panel="asteroids">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+            <span class="icon-tooltip">Asteroid Explorer</span>
+        </div>
+        <div class="sidebar-icon" data-panel="physics">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7v10c0 5.55 3.84 10.74 10 12 6.16-1.26 10-6.45 10-12V7l-10-5z"/></svg>
+            <span class="icon-tooltip">Physics Settings</span>
+        </div>
+        <div class="sidebar-icon" data-panel="orbital">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            <span class="icon-tooltip">Orbit Sandbox</span>
+        </div>
+    </div>
+
+    <div id="controls-panel" class="side-panel">
+        <div class="panel-header">
+            <h3>SIMULATION CONTROLS</h3>
+            <button class="close-panel">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="control-section">
+                <h4>Time Warp</h4>
+                <input type="range" id="speedSlider" min="0" max="100" value="25" step="1">
+                <div class="slider-labels">
+                    <span>1d/s</span>
+                    <span>1yr/s</span>
+                    <span>10yr/s</span>
+                </div>
+                <div id="speedLabel" class="value-display">1.0 Day/s</div>
+            </div>
+
+            <div class="control-section">
+                <h4>Camera</h4>
+                <button id="reset-camera" class="secondary-button">Reset View</button>
+            </div>
+            
+            <div class="control-section">
+                <h4 style="margin-top: 15px;">Asteroid Visual Scale</h4>
+                <input type="range" id="asteroid-scale-slider" min="1" max="20" value="5" step="0.5">
+                <div id="asteroid-scale-value" class="value-display">5.0x</div>
+                <p class="help-text">Adjust asteroid visual size for better visibility</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="asteroids-panel" class="side-panel">
+        <div class="panel-header">
+            <h3>ASTEROID EXPLORER</h3>
+            <button class="close-panel">&times;</button>
+        </div>
+        <div class="panel-content">
+            <input type="text" id="asteroid-search" placeholder="Search asteroids...">
+            <ul id="asteroid-list"></ul>
+        </div>
+    </div>
+
+    <div id="physics-panel" class="side-panel">
+        <div class="panel-header">
+            <h3>PHYSICS SETTINGS</h3>
+            <button class="close-panel">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="control-section">
+                <label class="toggle-label">
+                    <input type="checkbox" id="gravity-toggle" checked>
+                    <span>N-Body Gravity Simulation</span>
+                </label>
+                <p class="help-text">Enables realistic gravitational interactions between all bodies</p>
+            </div>
+
+            <div class="control-section">
+                <h4>Gravitational Constant Multiplier</h4>
+                <input type="range" id="g-multiplier" min="0.1" max="10" value="1" step="0.1">
+                <div id="g-value" class="value-display">1.0x</div>
+                <p class="help-text">Adjust G for experimental scenarios</p>
+            </div>
+
+            <div class="control-section">
+                <h4>Integration Method</h4>
+                <select id="integrator" class="dropdown">
+                    <option value="verlet">Velocity Verlet (Recommended)</option>
+                    <option value="rk4">Runge-Kutta 4</option>
+                    <option value="euler">Euler (Fast)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div id="orbital-panel" class="side-panel">
+        <div class="panel-header">
+            <h3>ORBIT SANDBOX</h3>
+            <button class="close-panel">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div id="orbital-warning" class="warning-box"></div>
+            
+            <div class="control-section">
+                <h4>Semi-major Axis (a)</h4>
+                <input type="range" id="a-slider" min="0.1" max="5.0" step="0.01" value="1.0">
+                <div id="a-value" class="value-display">0.000 AU</div>
+            </div>
+
+            <div class="control-section">
+                <h4>Eccentricity (e)</h4>
+                <input type="range" id="e-slider" min="0.0" max="0.99" step="0.001" value="0.0">
+                <div id="e-value" class="value-display">0.000</div>
+            </div>
+
+            <div class="control-section">
+                <h4>Inclination (i)</h4>
+                <input type="range" id="i-slider" min="0.0" max="180.0" step="0.1" value="0.0">
+                <div id="i-value" class="value-display">0.0°</div>
+            </div>
+
+            <div class="info-section">
+                <h3>Orbital Dynamics</h3>
+                <div class="info-row"><span class="info-label">Velocity</span><span id="orbital-velocity" class="info-value">--</span></div>
+                <div class="info-row"><span class="info-label">Period</span><span id="orbital-period" class="info-value">--</span></div>
+                <div class="info-row"><span class="info-label">Energy</span><span id="orbital-energy" class="info-value">--</span></div>
+            </div>
+
+            <button id="reset-orbit" class="secondary-button" style="margin-top: 15px;">Reset to Original</button>
+            <button id="crash-course" class="primary-button" style="margin-top: 10px; background: linear-gradient(135deg, #ff4444, #cc0000);">💥 Crash on Earth</button>
+        </div>
+    </div>
+
+    <div id="mitigation-panel" class="side-panel">
+        <div class="panel-header">
+            <h3>DEFLECTION METHODS</h3>
+            <button class="close-panel">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="control-section">
+                <h4>Available Methods</h4>
+                <p class="help-text" style="margin-bottom: 15px;">Select a deflection method to protect Earth from asteroid impacts. Each method has unique characteristics and timescales.</p>
+                <button id="kinetic-impactor-btn" class="primary-button">🚀 Kinetic Impactor</button>
+                <button id="surface-paint-btn" class="secondary-button" style="margin-top: 10px;">🎨 Surface Alteration</button>
+            </div>
+
+            <div id="method-description" class="info-section" style="display: none; margin-top: 20px;">
+                <h3 id="method-title">Method Details</h3>
+                <p id="method-text" style="line-height: 1.6; margin-bottom: 15px;"></p>
+                
+                <div id="kinetic-controls" style="display: none;">
+                    <h4 style="margin-top: 15px;">Impactor Parameters</h4>
+                    <div class="info-row" style="align-items: center; margin-top: 10px;">
+                        <span class="info-label">Spacecraft Mass</span>
+                        <input type="number" id="impactor-mass" value="600" min="100" max="10000" step="50"
+                               style="width: 100px; padding: 5px; background: rgba(20,20,40,0.8); 
+                               border: 1px solid rgba(79,195,247,0.3); color: #fff; border-radius: 4px;">
+                        <span style="color: #81d4fa; margin-left: 5px;">kg</span>
+                    </div>
+                    <p class="help-text" style="margin-top: 8px;">DART mission used ~600 kg. Larger mass = greater deflection.</p>
+                    <button id="launch-impactor" class="primary-button" style="margin-top: 15px; width: 100%;">🚀 Launch Mission</button>
+                </div>
+                
+                <div id="paint-controls" style="display: none;">
+                    <h4 style="margin-top: 15px;">Surface Treatment</h4>
+                    <p class="help-text" style="margin-bottom: 10px;">Deploy spacecraft to alter surface reflectivity</p>
+                    <button id="paint-active" class="primary-button" style="width: 100%;">🎨 Deploy Reflector Mission</button>
+                    <p class="help-text" style="margin-top: 10px; font-style: italic;">⏱️ Long-term strategy: Effect builds over years</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="info-panel">
+        <button id="close-btn">&times;</button>
+        <div id="asteroid-info"></div>
+    </div>
+
+    <script src="collision.js"></script>
+    <script src="intro-guide.js"></script>
+</body>
+</html>
