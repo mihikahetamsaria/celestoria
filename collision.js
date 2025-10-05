@@ -2710,7 +2710,7 @@ function createSun() {
     sun = new THREE.Mesh(geo, mat);
     sun.userData = { velocity: new THREE.Vector3(0, 0, 0), acceleration: new THREE.Vector3(0, 0, 0) };
     scene.add(sun);
-    textureLoader.load('textures/sun_surface.jpg', (loadedTexture) => {
+    textureLoader.load('textures/sun_surface-min.jpg', (loadedTexture) => {
         sun.material.map = loadedTexture;
         sun.material.needsUpdate = true;
     });
@@ -2728,7 +2728,7 @@ function createMercury() {
     const mat = new THREE.MeshPhongMaterial({ color: 0x8c7853 });
     mercury = new THREE.Mesh(geo, mat);
     scene.add(mercury);
-    textureLoader.load('textures/mercury.jpg', (loadedTexture) => {
+    textureLoader.load('textures/mercury-min.jpg', (loadedTexture) => {
         mercury.material.map = loadedTexture;
         mercury.material.needsUpdate = true;
     });
@@ -2744,7 +2744,7 @@ function createVenus() {
     venus = new THREE.Mesh(geo, mat);
     scene.add(venus);
 
-    textureLoader.load('textures/venus_atmosphere.jpg', (loadedTexture) => {
+    textureLoader.load('textures/venus_atmosphere-min.jpg', (loadedTexture) => {
         venus.material.map = loadedTexture;
         venus.material.needsUpdate = true;
     });
@@ -2761,7 +2761,7 @@ function createEarth() {
     earth = new THREE.Mesh(geo, mat);
     scene.add(earth);
 
-    textureLoader.load('textures/earth_day.jpg', (loadedTexture) => {
+    textureLoader.load('textures/earth_day-min.jpg', (loadedTexture) => {
         earth.material.map = loadedTexture;
         earth.material.needsUpdate = true;
     });
@@ -2778,7 +2778,7 @@ function createMars() {
     mars = new THREE.Mesh(geo, mat);
     scene.add(mars);
 
-    textureLoader.load('textures/mars.jpg', (loadedTexture) => {
+    textureLoader.load('textures/mars-min.jpg', (loadedTexture) => {
         mars.material.map = loadedTexture;
         mars.material.needsUpdate = true;
     });
@@ -2795,7 +2795,7 @@ function createJupiter() {
     jupiter = new THREE.Mesh(geo, mat);
     scene.add(jupiter);
 
-    textureLoader.load('textures/jupiter.jpg', (loadedTexture) => {
+    textureLoader.load('textures/jupiter-min.jpg', (loadedTexture) => {
         jupiter.material.map = loadedTexture;
         jupiter.material.needsUpdate = true;
     });
@@ -2812,7 +2812,7 @@ function createSaturn() {
     saturn = new THREE.Mesh(geo, mat);
     scene.add(saturn);
 
-    textureLoader.load('textures/saturn.jpg', (loadedTexture) => {
+    textureLoader.load('textures/saturn-min.jpg', (loadedTexture) => {
         saturn.material.map = loadedTexture;
         saturn.material.needsUpdate = true;
     });
@@ -2824,7 +2824,7 @@ function createSaturn() {
     ring.rotation.x = Math.PI / 2;
     saturn.add(ring);
 
-    textureLoader.load('textures/saturn_ring.png', (loadedTexture) => {
+    textureLoader.load('textures/saturn_ring-min.png', (loadedTexture) => {
         ring.material.map = loadedTexture;
         ring.material.needsUpdate = true;
     });
@@ -2841,7 +2841,7 @@ function createUranus() {
     uranus = new THREE.Mesh(geo, mat);
     scene.add(uranus);
 
-    textureLoader.load('textures/uranus.jpg', (loadedTexture) => {
+    textureLoader.load('textures/uranus-min.jpg', (loadedTexture) => {
         uranus.material.map = loadedTexture;
         uranus.material.needsUpdate = true;
     });
@@ -2858,7 +2858,7 @@ function createNeptune() {
     neptune = new THREE.Mesh(geo, mat);
     scene.add(neptune);
 
-    textureLoader.load('textures/neptune.jpg', (loadedTexture) => {
+    textureLoader.load('textures/neptune-min.jpg', (loadedTexture) => {
         neptune.material.map = loadedTexture;
         neptune.material.needsUpdate = true;
     });
