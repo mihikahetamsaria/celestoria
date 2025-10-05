@@ -2706,13 +2706,16 @@ function setupOrbitalControls(data) {
 
 function createSun() {
     const geo = new THREE.SphereGeometry(7, 32, 32);
-    const tex = textureLoader.load('textures/sun_surface.jpg');
-    sun = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, color: 0xffaa00 }));
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+    sun = new THREE.Mesh(geo, mat);
     sun.userData = { velocity: new THREE.Vector3(0, 0, 0), acceleration: new THREE.Vector3(0, 0, 0) };
     scene.add(sun);
+    textureLoader.load('textures/sun_surface.jpg', (loadedTexture) => {
+        sun.material.map = loadedTexture;
+        sun.material.needsUpdate = true;
+    });
     const sunLight = new THREE.PointLight(0xffffff, 2, 0);
     scene.add(sunLight);
-    
     const labelPos = sun.position.clone();
     labelPos.y += 10;
     const label = createLabel('Sun', labelPos);
@@ -2722,10 +2725,13 @@ function createSun() {
 
 function createMercury() {
     const geo = new THREE.SphereGeometry(0.5, 32, 32);
-    const tex = textureLoader.load('textures/mercury.jpg');
-    mercury = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ map: tex, color: 0x8c7853 }));
+    const mat = new THREE.MeshPhongMaterial({ color: 0x8c7853 });
+    mercury = new THREE.Mesh(geo, mat);
     scene.add(mercury);
-    
+    textureLoader.load('textures/mercury.jpg', (loadedTexture) => {
+        mercury.material.map = loadedTexture;
+        mercury.material.needsUpdate = true;
+    });
     const label = createLabel('Mercury', new THREE.Vector3(0, 2, 0));
     mercury.add(label);
     planetLabels.set('mercury', label);
@@ -2733,9 +2739,15 @@ function createMercury() {
 
 function createVenus() {
     const geo = new THREE.SphereGeometry(1.2, 32, 32);
-    const tex = textureLoader.load('textures/venus_atmosphere.jpg');
-    venus = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ map: tex, color: 0xffc649 }));
+    const mat = new THREE.MeshPhongMaterial({ color: 0xffc649 });
+
+    venus = new THREE.Mesh(geo, mat);
     scene.add(venus);
+
+    textureLoader.load('textures/venus_atmosphere.jpg', (loadedTexture) => {
+        venus.material.map = loadedTexture;
+        venus.material.needsUpdate = true;
+    });
     
     const label = createLabel('Venus', new THREE.Vector3(0, 3, 0));
     venus.add(label);
@@ -2744,9 +2756,15 @@ function createVenus() {
 
 function createEarth() {
     const geo = new THREE.SphereGeometry(1.4, 32, 32);
-    const tex = textureLoader.load('textures/earth_day.jpg');
-    earth = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ map: tex, color: 0x6b93d6 }));
+    const mat = new THREE.MeshPhongMaterial({ color: 0x6b93d6 });
+
+    earth = new THREE.Mesh(geo, mat);
     scene.add(earth);
+
+    textureLoader.load('textures/earth_day.jpg', (loadedTexture) => {
+        earth.material.map = loadedTexture;
+        earth.material.needsUpdate = true;
+    });
     
     const label = createLabel('Earth', new THREE.Vector3(0, 3, 0));
     earth.add(label);
@@ -2755,9 +2773,15 @@ function createEarth() {
 
 function createMars() {
     const geo = new THREE.SphereGeometry(1, 32, 32);
-    const tex = textureLoader.load('textures/mars.jpg');
-    mars = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ map: tex, color: 0xc1440e }));
+    const mat = new THREE.MeshPhongMaterial({ color: 0xc1440e });
+
+    mars = new THREE.Mesh(geo, mat);
     scene.add(mars);
+
+    textureLoader.load('textures/mars.jpg', (loadedTexture) => {
+        mars.material.map = loadedTexture;
+        mars.material.needsUpdate = true;
+    });
     
     const label = createLabel('Mars', new THREE.Vector3(0, 3, 0));
     mars.add(label);
@@ -2766,9 +2790,15 @@ function createMars() {
 
 function createJupiter() {
     const geo = new THREE.SphereGeometry(4, 32, 32);
-    const tex = textureLoader.load('textures/jupiter.jpg');
-    jupiter = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ map: tex, color: 0xc88b3a }));
+    const mat = new THREE.MeshPhongMaterial({ color: 0xc88b3a });
+
+    jupiter = new THREE.Mesh(geo, mat);
     scene.add(jupiter);
+
+    textureLoader.load('textures/jupiter.jpg', (loadedTexture) => {
+        jupiter.material.map = loadedTexture;
+        jupiter.material.needsUpdate = true;
+    });
     
     const label = createLabel('Jupiter', new THREE.Vector3(0, 6, 0));
     jupiter.add(label);
@@ -2777,15 +2807,27 @@ function createJupiter() {
 
 function createSaturn() {
     const geo = new THREE.SphereGeometry(5.5, 32, 32);
-    const tex = textureLoader.load('textures/saturn.jpg');
-    saturn = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ map: tex, color: 0xfad5a5 }));
+    const mat = new THREE.MeshPhongMaterial({ color: 0xfad5a5 });
+    
+    saturn = new THREE.Mesh(geo, mat);
     scene.add(saturn);
+
+    textureLoader.load('textures/saturn.jpg', (loadedTexture) => {
+        saturn.material.map = loadedTexture;
+        saturn.material.needsUpdate = true;
+    });
+
     const ringGeo = new THREE.RingGeometry(7, 10, 64);
-    const ringTex = textureLoader.load('textures/saturn_ring.png');
-    const ringMat = new THREE.MeshBasicMaterial({ map: ringTex, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+    const ringMat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+    
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = Math.PI / 2;
     saturn.add(ring);
+
+    textureLoader.load('textures/saturn_ring.png', (loadedTexture) => {
+        ring.material.map = loadedTexture;
+        ring.material.needsUpdate = true;
+    });
     
     const label = createLabel('Saturn', new THREE.Vector3(0, 8, 0));
     saturn.add(label);
@@ -2794,9 +2836,15 @@ function createSaturn() {
 
 function createUranus() {
     const geo = new THREE.SphereGeometry(4.5, 32, 32);
-    const tex = textureLoader.load('textures/uranus.jpg');
-    uranus = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ map: tex, color: 0x4fd0e7 }));
+    const mat = new THREE.MeshPhongMaterial({ color: 0x4fd0e7 });
+
+    uranus = new THREE.Mesh(geo, mat);
     scene.add(uranus);
+
+    textureLoader.load('textures/uranus.jpg', (loadedTexture) => {
+        uranus.material.map = loadedTexture;
+        uranus.material.needsUpdate = true;
+    });
     
     const label = createLabel('Uranus', new THREE.Vector3(0, 7, 0));
     uranus.add(label);
@@ -2805,9 +2853,15 @@ function createUranus() {
 
 function createNeptune() {
     const geo = new THREE.SphereGeometry(4.3, 32, 32);
-    const tex = textureLoader.load('textures/neptune.jpg');
-    neptune = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ map: tex, color: 0x4b70dd }));
+    const mat = new THREE.MeshPhongMaterial({ color: 0x4b70dd });
+
+    neptune = new THREE.Mesh(geo, mat);
     scene.add(neptune);
+
+    textureLoader.load('textures/neptune.jpg', (loadedTexture) => {
+        neptune.material.map = loadedTexture;
+        neptune.material.needsUpdate = true;
+    });
     
     const label = createLabel('Neptune', new THREE.Vector3(0, 7, 0));
     neptune.add(label);
