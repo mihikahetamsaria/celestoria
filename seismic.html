@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Global Asteroid Risk Assessment Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            background-color: #0a0a0a;
+            color: #e5e7eb;
+        }
+        #globe-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+        .ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 24px;
+            width: 380px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .slider-container {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 12px;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 4px;
+            background: #4a5568;
+            border-radius: 2px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type="range"]:hover {
+            opacity: 1;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #38bdf8;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #0f172a;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #38bdf8;
+            cursor: pointer;
+            border-radius: 50%;
+             border: 2px solid #0f172a;
+        }
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 24px;
+            width: 420px;
+            display: none;
+            z-index: 10;
+        }
+        .risk-level {
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+        }
+        .risk-low { color: #4ade80; background-color: rgba(74, 222, 128, 0.1); }
+        .risk-moderate { color: #facc15; background-color: rgba(250, 204, 21, 0.1); }
+        .risk-high { color: #f97316; background-color: rgba(249, 115, 22, 0.1); }
+        .risk-extreme { color: #ef4444; background-color: rgba(239, 68, 68, 0.1); }
+        .risk-catastrophic { color: #f43f5e; background-color: rgba(244, 63, 94, 0.1); }
+
+        .timeline-tab {
+            background-color: rgba(55, 65, 81, 0.5);
+            color: #9ca3af;
+        }
+        .timeline-tab.active {
+            background-color: #38bdf8;
+            color: #ffffff;
+        }
+        .timeline-tab:hover:not(.active) {
+            background-color: rgba(55, 65, 81, 0.8);
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #38bdf8;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #0a0a0a; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        #mobile-warning {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 10, 0.98);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            text-align: center;
+        }
+        #mobile-warning svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            color: #38bdf8;
+        }
+
+        /* Responsive UI panels */
+        @media (max-width: 1400px) {
+            .ui-panel {
+                width: 320px;
+                padding: 18px;
+            }
+            .info-panel {
+                width: 360px;
+                padding: 18px;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .ui-panel {
+                width: 280px;
+                padding: 16px;
+                font-size: 0.9rem;
+            }
+            .info-panel {
+                width: 300px;
+                padding: 16px;
+                font-size: 0.9rem;
+            }
+            h1 {
+                font-size: 1.5rem !important;
+            }
+            h2 {
+                font-size: 1.2rem !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .ui-panel {
+                top: 10px;
+                left: 10px;
+                width: calc(100% - 20px);
+                max-width: 400px;
+            }
+            .info-panel {
+                bottom: 10px;
+                right: 10px;
+                width: calc(100% - 20px);
+                max-width: 400px;
+            }
+            #legend-panel {
+                bottom: 10px;
+                left: 10px;
+                width: calc(100% - 20px);
+                max-width: 280px;
+            }
+        }
+
+        @media (max-height: 700px) {
+            .ui-panel, .info-panel {
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="loader"></div>
+        <p class="mt-4 text-lg">Loading Global Geospatial Data Layers...</p>
+    </div>
+
+    <div id="mobile-warning">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+        <h2 class="text-2xl font-bold text-white mb-4">Desktop Experience Required</h2>
+        <p class="text-gray-300 max-w-md mb-2">This Global Asteroid Risk Assessment Platform requires a desktop or laptop computer for optimal performance.</p>
+        <p class="text-gray-400 text-sm">The 3D globe visualization and complex calculations are designed for larger screens and more powerful processors.</p>
+    </div>
+
+    <div id="globe-container"></div>
+
+    <div class="ui-panel">
+        <h1 class="text-2xl font-bold text-white mb-1">Threat Assessment Console</h1>
+        <p class="text-sm text-gray-400 mb-6">Configure impactor parameters and select a target.</p>
+
+        <div class="space-y-5">
+            <div>
+                <label for="diameter" class="block text-sm font-medium text-gray-300">Impactor Diameter (km)</label>
+                <div class="slider-container">
+                    <input type="range" id="diameter" min="40000" max="1000000" value="100000" step="1000">
+                    <span id="diameter-value" class="text-sm font-semibold text-sky-300 w-16 text-right">100 km</span>
+                </div>
+            </div>
+
+            <div>
+                <label for="velocity" class="block text-sm font-medium text-gray-300">Entry Velocity (km/s)</label>
+                <div class="slider-container">
+                    <input type="range" id="velocity" min="11" max="72" value="20" step="1">
+                    <span id="velocity-value" class="text-sm font-semibold text-sky-300 w-16 text-right">20 km/s</span>
+                </div>
+            </div>
+
+            <div>
+                <label for="angle" class="block text-sm font-medium text-gray-300">Entry Angle (degrees)</label>
+                <div class="slider-container">
+                    <input type="range" id="angle" min="1" max="90" value="45" step="1">
+                    <span id="angle-value" class="text-sm font-semibold text-sky-300 w-16 text-right">45°</span>
+                </div>
+            </div>
+
+            <div>
+                <label for="composition" class="block text-sm font-medium text-gray-300">Impactor Composition</label>
+                <select id="composition" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                    <option value="stony">Stony (Chondrite)</option>
+                    <option value="iron">Iron</option>
+                    <option value="comet">Comet (Icy)</option>
+                </select>
+            </div>
+        </div>
+        <div class="mt-6 text-center text-xs text-gray-500">
+            <p>Data models based on USGS & planetary defense sources.</p>
+        </div>
+    </div>
+
+    <div id="legend-panel" class="ui-panel" style="top: auto; bottom: 20px; left: 20px; width: 320px; display: none;">
+        <h3 class="text-lg font-bold text-white mb-3">Heatmap Legend</h3>
+        <div class="space-y-2 text-xs">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-4 rounded" style="background: linear-gradient(to right, #00ff00, #ffff00, #ff0000);"></div>
+                <span class="text-gray-300">Shaking Intensity (MMI)</span>
+            </div>
+            <div class="flex justify-between text-gray-400 ml-10">
+                <span>Low (I-IV)</span>
+                <span>Moderate (V-VII)</span>
+                <span>Extreme (VIII+)</span>
+            </div>
+            <div class="flex items-center gap-2 mt-3">
+                <div class="w-4 h-4 rounded-full bg-blue-400"></div>
+                <span class="text-gray-300">P-Wave (Primary, faster)</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded-full" style="background: rgb(255, 77, 26);"></div>
+                <span class="text-gray-300">S-Wave (Secondary, destructive)</span>
+            </div>
+            <div class="flex items-center gap-2 mt-3">
+                <div class="w-4 h-4 rounded-full" style="background: rgb(204, 51, 255);"></div>
+                <span class="text-gray-300">Liquefaction Zones</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded-full" style="background: rgb(255, 128, 0);"></div>
+                <span class="text-gray-300">Landslide Risk Zones</span>
+            </div>
+            <div class="flex items-center gap-2 mt-3">
+                <div class="w-12 h-1 rounded" style="background: rgb(255, 136, 0);"></div>
+                <span class="text-gray-300">Tectonic Plate Boundaries</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="info-panel" class="info-panel">
+        <div class="flex gap-2 mb-4 border-b border-gray-700 pb-2">
+            <button id="tab-immediate" class="timeline-tab active px-4 py-2 rounded-t text-sm font-semibold transition-colors">Immediate Impact</button>
+            <button id="tab-1year" class="timeline-tab px-4 py-2 rounded-t text-sm font-semibold transition-colors">1 Year Later</button>
+            <button id="tab-10year" class="timeline-tab px-4 py-2 rounded-t text-sm font-semibold transition-colors">10 Years Later</button>
+        </div>
+        <h2 class="text-xl font-bold text-white mb-4">Global Risk Assessment</h2>
+        <div id="immediate-content">
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between items-center"><span class="text-gray-400">Coordinates:</span> <span id="impact-location" class="font-semibold text-right"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">Impact Type:</span> <span id="impact-type" class="font-semibold text-right"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">Crater Diameter:</span> <span id="crater-diameter" class="font-semibold text-right"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">Thermal Radius:</span> <span id="thermal-radius" class="font-semibold text-right"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">Ejecta Radius:</span> <span id="ejecta-radius" class="font-semibold text-right"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">Geology:</span> <span id="geology-type" class="font-semibold text-right"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">Seismic History:</span> <span id="seismic-history" class="font-semibold text-right"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">Primary Threat:</span> <span id="primary-threat" class="font-bold text-lg text-right text-white"></span></div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-700">
+                 <h3 class="text-md font-semibold text-white mb-3">Shaking Intensity (MMI)</h3>
+                 <div class="space-y-2 text-sm mb-3">
+                    <div class="flex justify-between items-center"><span class="text-gray-300">Modified Mercalli Intensity:</span> <span id="mmi-value" class="font-bold text-lg text-white"></span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-300">Ground Amplification:</span> <span id="ground-amp" class="font-semibold text-right"></span></div>
+                 </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-700">
+                 <h3 class="text-md font-semibold text-white mb-3">Secondary Hazards</h3>
+                 <div class="space-y-2 text-sm">
+                    <div class="flex justify-between items-center"><span class="text-gray-300">Liquefaction Risk:</span> <span id="liquefaction-risk" class="risk-level"></span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-300">Landslide Risk:</span> <span id="landslide-risk" class="risk-level"></span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-300">Tsunami Generation:</span> <span id="tsunami-risk" class="risk-level"></span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-300">Seismic Fault Aggravation:</span> <span id="fault-risk" class="risk-level"></span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-300">Air Blast Radius:</span> <span id="airblast-risk" class="risk-level"></span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-300">Thermal Radiation:</span> <span id="thermal-risk" class="risk-level"></span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-300">Ejecta Blanket:</span> <span id="ejecta-risk" class="risk-level"></span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-300">Potential Affected Population:</span> <span id="population-risk" class="risk-level"></span></div>
+                 </div>
+            </div>
+        </div>
+        <div id="1year-content" style="display: none;">
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between items-center"><span class="text-gray-400">Global Temp Drop:</span> <span id="temp-drop" class="font-bold text-lg text-red-400"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">Estimated Fatalities:</span> <span id="fatalities" class="font-bold text-lg text-red-400"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">Population Displaced:</span> <span id="displaced" class="font-bold text-lg text-orange-400"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">Agricultural Collapse:</span> <span id="agri-collapse" class="font-bold text-lg text-yellow-400"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">Dust Cloud Duration:</span> <span id="dust-duration" class="font-semibold text-right"></span></div>
+            </div>
+        </div>
+        <div id="10year-content" style="display: none;">
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between items-center"><span class="text-gray-400">Climate Status:</span> <span id="climate-status" class="font-semibold text-right"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">Atmospheric Recovery:</span> <span id="atmos-recovery" class="font-semibold text-right"></span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-400">River Alterations:</span> <span id="river-changes" class="font-semibold text-right"></span></div>
+                <div class="mt-4 pt-4 border-t border-gray-700">
+                    <h3 class="text-md font-semibold text-white mb-3">Permanent Geological Changes</h3>
+                    <ul id="geo-changes" class="list-disc list-inside text-gray-300 space-y-1"></ul>
+                </div>
+            </div>
+        </div>
+        <button id="reset-button" class="mt-6 w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+            Reset Scenario
+        </button>
+    </div>
+
+<script id="vertexShader" type="x-shader/x-vertex">
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vLocalPosition;
+    void main() {
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        vLocalPosition = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+</script>
+
+<script id="fragmentShader" type="x-shader/x-fragment">
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vLocalPosition;
+    uniform sampler2D baseTexture;
+    uniform sampler2D cloudsTexture;
+    uniform sampler2D vs30Texture;
+    uniform sampler2D faultLinesTexture;
+    uniform sampler2D liquefactionTexture;
+    uniform sampler2D landslideTexture;
+    uniform vec3 impactPoint;
+    uniform float magnitude;
+    uniform float heatmapIntensity;
+    uniform mat3 anisotropyMatrix;
+    uniform float pWaveRadius;
+    uniform float sWaveRadius;
+    uniform float waveTime;
+
+    const float GLOBE_RADIUS = 5.0;
+    const float P_WAVE_SPEED = 8.0; // km/s in crust
+    const float S_WAVE_SPEED = 4.5; // km/s in crust
+
+    void main() {
+        vec4 earthColor = texture2D(baseTexture, vUv);
+
+        // Apply anisotropic transformation for elliptical propagation
+        vec3 anisotropicPosition = anisotropyMatrix * vLocalPosition;
+        float greatCircleDistance = acos(clamp(dot(normalize(anisotropicPosition), normalize(impactPoint)), -1.0, 1.0)) * GLOBE_RADIUS;
+
+        // Vs30 ground amplification factor (lower Vs30 = softer soil = more amplification)
+        float vs30Value = texture2D(vs30Texture, vUv).r;
+        float groundAmplification = 1.0 + (1.0 - vs30Value) * 2.5; // Up to 3.5x amplification
+
+        // Fault line channeling
+        float faultProximity = texture2D(faultLinesTexture, vUv).r;
+        float faultAmplification = 1.0 + faultProximity * 1.5;
+
+        // Combined geological amplification
+        float geoAmplification = groundAmplification * faultAmplification;
+
+        float heatmapRange = pow(10.0, magnitude / 3.0) * 0.15;
+        float heatmapValue = 1.0 - smoothstep(0.0, heatmapRange, greatCircleDistance);
+
+        // Apply geological amplification to heatmap
+        heatmapValue = clamp(heatmapValue * geoAmplification, 0.0, 1.0);
+
+        // Animated P-wave (faster, less intense)
+        float pWaveThickness = 0.3;
+        float pWaveDist = abs(greatCircleDistance - pWaveRadius);
+        float pWaveIntensity = smoothstep(pWaveThickness, 0.0, pWaveDist) * 0.4;
+
+        // Animated S-wave (slower, more destructive)
+        float sWaveThickness = 0.5;
+        float sWaveDist = abs(greatCircleDistance - sWaveRadius);
+        float sWaveIntensity = smoothstep(sWaveThickness, 0.0, sWaveDist) * 0.8;
+
+        // Wave colors
+        vec3 pWaveColor = vec3(0.3, 0.6, 1.0); // Blue for P-wave
+        vec3 sWaveColor = vec3(1.0, 0.3, 0.1); // Red-orange for S-wave
+
+        vec3 heatmapColor = vec3(0.0);
+        if (heatmapValue > 0.0) {
+             heatmapColor = mix(vec3(0.0, 1.0, 0.0), vec3(1.0, 1.0, 0.0), smoothstep(0.0, 0.6, heatmapValue));
+             heatmapColor = mix(heatmapColor, vec3(1.0, 0.0, 0.0), smoothstep(0.6, 1.0, heatmapValue));
+        }
+
+        // Secondary hazard overlays
+        float liquefactionRisk = texture2D(liquefactionTexture, vUv).r;
+        float landslideRisk = texture2D(landslideTexture, vUv).r;
+
+        vec3 hazardColor = vec3(0.0);
+        if (heatmapValue > 0.6) { // Only show hazards in strong shaking areas
+            hazardColor += vec3(0.8, 0.2, 1.0) * liquefactionRisk * 0.5; // Purple for liquefaction
+            hazardColor += vec3(1.0, 0.5, 0.0) * landslideRisk * 0.5; // Orange for landslides
+        }
+
+        vec3 finalColor = earthColor.rgb + 
+                         heatmapColor * heatmapValue * heatmapIntensity * 2.0 +
+                         pWaveColor * pWaveIntensity * waveTime +
+                         sWaveColor * sWaveIntensity * waveTime +
+                         hazardColor * heatmapIntensity;
+
+        vec4 cloudTexture = texture2D(cloudsTexture, vUv);
+        finalColor = mix(finalColor, vec3(1.0), cloudTexture.r * 0.35);
+
+        // Realistic satellite-like lighting - bright, natural illumination
+        vec3 lightDirection = normalize(vec3(5.0, 3.0, 5.0));
+        float diffuse = max(dot(vNormal, lightDirection), 0.0);
+        float ambient = 0.5;
+        float light = diffuse * 0.7 + ambient;
+
+        // Enhance color vibrancy and contrast
+        finalColor = finalColor * light;
+        finalColor = pow(finalColor, vec3(0.95)); // Slight gamma adjustment for vibrancy
+
+        gl_FragColor = vec4(finalColor, 1.0);
+    }
+</script>
+
+<script type="module">
+    let scene, camera, renderer, globe, stars;
+    let isImpacting = false;
+    let geoData = {};
+    let usgsDataCache = {};
+    let currentTimeline = 'immediate';
+    let impactResults = null;
+
+    // Mobile detection
+    function isMobileDevice() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+            || window.innerWidth < 768;
+    }
+
+    // Check if mobile on load
+    if (isMobileDevice()) {
+        document.getElementById('loading-overlay').style.display = 'none';
+        document.getElementById('mobile-warning').style.display = 'flex';
+    }
+
+    async function init() {
+        // Don't initialize on mobile
+        if (isMobileDevice()) return;
+
+        // Load population data
+        await loadPopulationData();
+
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        const globeContainer = document.getElementById('globe-container');
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        globeContainer.appendChild(renderer.domElement);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+
+        const sphere = new THREE.SphereGeometry(5, 128, 128); 
+
+        const loadingManager = new THREE.LoadingManager(() => {
+            document.getElementById('loading-overlay').style.display = 'none';
+        });
+        const textureLoader = new THREE.TextureLoader(loadingManager);
+
+        // Use NASA Blue Marble texture for photorealistic appearance
+        const earthTexture = textureLoader.load('https://unpkg.com/three-globe@2.24.4/example/img/earth-blue-marble.jpg');
+        earthTexture.encoding = THREE.sRGBEncoding;
+        // Generate synthetic clouds texture to avoid CORS issues
+        const cloudsTexture = generateCloudsTexture();
+
+        // Generate synthetic data layers instead of loading from external sources
+        generateSyntheticDataLayers();
+
+        // Generate synthetic Vs30, fault lines, liquefaction, and landslide susceptibility maps
+        const vs30Texture = generateVs30Map();
+        const faultLinesTexture = generateFaultLinesMap();
+        const liquefactionTexture = generateLiquefactionMap();
+        const landslideTexture = generateLandslideMap();
+
+        const shaderMaterial = new THREE.ShaderMaterial({
+            vertexShader: document.getElementById('vertexShader').textContent,
+            fragmentShader: document.getElementById('fragmentShader').textContent,
+            uniforms: {
+                baseTexture: { value: earthTexture },
+                cloudsTexture: { value: cloudsTexture },
+                vs30Texture: { value: vs30Texture },
+                faultLinesTexture: { value: faultLinesTexture },
+                liquefactionTexture: { value: liquefactionTexture },
+                landslideTexture: { value: landslideTexture },
+                impactPoint: { value: new THREE.Vector3(0, 10000, 0) },
+                magnitude: { value: 0.0 },
+                heatmapIntensity: { value: 0.0 },
+                anisotropyMatrix: { value: new THREE.Matrix3() },
+                pWaveRadius: { value: 0.0 },
+                sWaveRadius: { value: 0.0 },
+                waveTime: { value: 0.0 }
+            }
+        });
+
+        globe = new THREE.Mesh(sphere, shaderMaterial);
+        scene.add(globe);
+
+        const starGeometry = new THREE.BufferGeometry();
+        const starVertices = [];
+        for (let i = 0; i < 10000; i++) {
+            const x = (Math.random() - 0.5) * 2000;
+            const y = (Math.random() - 0.5) * 2000;
+            const z = (Math.random() - 0.5) * 2000;
+            if(Math.sqrt(x*x+y*y+z*z) > 200) starVertices.push(x, y, z);
+        }
+        starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+        stars = new THREE.Points(starGeometry, starMaterial);
+        scene.add(stars);
+
+        camera.position.z = 15;
+        addEventListeners();
+        animate();
+    }
+
+    function setupGeoData(name, texture) {
+        const canvas = document.createElement('canvas');
+        const img = texture.image;
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        context.drawImage(img, 0, 0);
+        geoData[name] = context;
+    }
+
+    function generateSyntheticDataLayers() {
+        const size = 1024;
+        
+        // Generate land mask
+        const landCanvas = document.createElement('canvas');
+        landCanvas.width = size;
+        landCanvas.height = size;
+        const landCtx = landCanvas.getContext('2d', { willReadFrequently: true });
+        const landData = landCtx.createImageData(size, size);
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
+                const lat = (y / size) * 180 - 90;
+                const lon = (x / size) * 360 - 180;
+                // Simple land/ocean approximation
+                const isLand = Math.abs(lat) < 60 && (Math.sin(lon * 0.1) * Math.cos(lat * 0.05) > -0.2);
+                const value = isLand ? 255 : 0;
+                landData.data[idx] = landData.data[idx + 1] = landData.data[idx + 2] = value;
+                landData.data[idx + 3] = 255;
+            }
+        }
+        landCtx.putImageData(landData, 0, 0);
+        geoData['land'] = landCtx;
+
+        // Generate tectonic plates
+        const tectonicCanvas = document.createElement('canvas');
+        tectonicCanvas.width = size;
+        tectonicCanvas.height = size;
+        const tectonicCtx = tectonicCanvas.getContext('2d', { willReadFrequently: true });
+        const tectonicData = tectonicCtx.createImageData(size, size);
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
+                const lat = (y / size) * 180 - 90;
+                const lon = (x / size) * 360 - 180;
+                const proximity = Math.abs(Math.sin(lat * 0.15) * Math.cos(lon * 0.1)) * 255;
+                tectonicData.data[idx] = tectonicData.data[idx + 1] = tectonicData.data[idx + 2] = proximity;
+                tectonicData.data[idx + 3] = 255;
+            }
+        }
+        tectonicCtx.putImageData(tectonicData, 0, 0);
+        geoData['tectonic'] = tectonicCtx;
+
+        // Generate population density
+        const popCanvas = document.createElement('canvas');
+        popCanvas.width = size;
+        popCanvas.height = size;
+        const popCtx = popCanvas.getContext('2d', { willReadFrequently: true });
+        const popData = popCtx.createImageData(size, size);
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
+                const lat = (y / size) * 180 - 90;
+                const lon = (x / size) * 360 - 180;
+                // Higher density near equator and coastal areas
+                const density = Math.max(0, (1 - Math.abs(lat) / 90) * 0.7 + Math.random() * 0.3) * 255;
+                popData.data[idx] = popData.data[idx + 1] = popData.data[idx + 2] = density;
+                popData.data[idx + 3] = 255;
+            }
+        }
+        popCtx.putImageData(popData, 0, 0);
+        geoData['population'] = popCtx;
+
+        // Generate topography
+        const topoCanvas = document.createElement('canvas');
+        topoCanvas.width = size;
+        topoCanvas.height = size;
+        const topoCtx = topoCanvas.getContext('2d', { willReadFrequently: true });
+        const topoData = topoCtx.createImageData(size, size);
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
+                const lat = (y / size) * 180 - 90;
+                const lon = (x / size) * 360 - 180;
+                const elevation = Math.abs(Math.sin(lat * 0.2) * Math.cos(lon * 0.15)) * 255;
+                topoData.data[idx] = topoData.data[idx + 1] = topoData.data[idx + 2] = elevation;
+                topoData.data[idx + 3] = 255;
+            }
+        }
+        topoCtx.putImageData(topoData, 0, 0);
+        geoData['topography'] = topoCtx;
+
+        // Generate geology
+        const geoCanvas = document.createElement('canvas');
+        geoCanvas.width = size;
+        geoCanvas.height = size;
+        const geoCtx = geoCanvas.getContext('2d', { willReadFrequently: true });
+        const geoDataImg = geoCtx.createImageData(size, size);
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
+                const value = Math.floor(Math.random() * 255);
+                geoDataImg.data[idx] = geoDataImg.data[idx + 1] = geoDataImg.data[idx + 2] = value;
+                geoDataImg.data[idx + 3] = 255;
+            }
+        }
+        geoCtx.putImageData(geoDataImg, 0, 0);
+        geoData['geology'] = geoCtx;
+    }
+
+    // Use synthetic population data
+    let populationDataCanvas = null;
+
+    async function loadPopulationData() {
+        // Use synthetic data generated in generateSyntheticDataLayers
+        return null;
+    }
+
+    // Get population density at specific coordinates (people per km²)
+    function getPopulationDensityAtPoint(lat, lon) {
+        // Use loaded population data if available
+        if (populationDataCanvas) {
+            const x = Math.floor(((lon + 180) / 360) * populationDataCanvas.canvas.width);
+            const y = Math.floor(((90 - lat) / 180) * populationDataCanvas.canvas.height);
+
+            if (x >= 0 && x < populationDataCanvas.canvas.width && y >= 0 && y < populationDataCanvas.canvas.height) {
+                const pixel = populationDataCanvas.getImageData(x, y, 1, 1).data;
+                // Convert pixel value to people per km² (0-255 maps to 0-5000 people/km²)
+                return (pixel[0] / 255) * 5000;
+            }
+        }
+
+        // Fallback: estimate based on known densities
+        const denseCities = [
+            { lat: 35.7, lon: 139.7, density: 6158 }, // Tokyo
+            { lat: 40.7, lon: -74.0, density: 10715 }, // NYC
+            { lat: 28.6, lon: 77.2, density: 11320 }, // Delhi
+            { lat: 31.2, lon: 121.5, density: 3826 }, // Shanghai
+            { lat: 22.3, lon: 114.2, density: 6777 }, // Hong Kong
+            { lat: 1.3, lon: 103.8, density: 8358 }, // Singapore
+            { lat: 19.4, lon: -99.1, density: 6000 }, // Mexico City
+            { lat: 51.5, lon: -0.1, density: 5590 }, // London
+            { lat: 48.9, lon: 2.3, density: 20700 }, // Paris
+            { lat: -23.5, lon: -46.6, density: 7398 } // São Paulo
+        ];
+
+        // Find nearest city for rough estimate
+        let minDist = Infinity;
+        let nearestDensity = 50; // Global average
+
+        denseCities.forEach(city => {
+            const dist = Math.sqrt(Math.pow(lat - city.lat, 2) + Math.pow(lon - city.lon, 2));
+            if (dist < minDist) {
+                minDist = dist;
+                nearestDensity = city.density * Math.exp(-dist / 10); // Exponential falloff
+            }
+        });
+
+        return nearestDensity;
+    }
+
+    // Generate synthetic Vs30 map (shear wave velocity - soil stiffness)
+    function generateVs30Map() {
+        const size = 1024;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(size, size);
+
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
+                const lat = (y / size) * 180 - 90;
+                const lon = (x / size) * 360 - 180;
+
+                // Coastal and river valleys have soft soil (low Vs30)
+                const coastalProximity = Math.sin(lat * 0.1) * Math.cos(lon * 0.15);
+                const riverValley = Math.sin(lat * 0.3) * Math.sin(lon * 0.25);
+                const vs30 = 0.3 + coastalProximity * 0.35 + riverValley * 0.35;
+
+                const value = Math.floor(vs30 * 255);
+                imageData.data[idx] = value;
+                imageData.data[idx + 1] = value;
+                imageData.data[idx + 2] = value;
+                imageData.data[idx + 3] = 255;
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    // Generate fault lines map based on tectonic plate boundaries
+    function generateFaultLinesMap() {
+        const size = 1024;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(size, size);
+
+        // Major fault lines approximated
+        const faults = [
+            { lat1: 32, lon1: -125, lat2: 35, lon2: -115 }, // San Andreas
+            { lat1: 35, lon1: 135, lat2: 45, lon2: 142 }, // Japan Trench
+            { lat1: -20, lon1: 170, lat2: -40, lon2: 175 }, // New Zealand
+            { lat1: 10, lon1: -85, lat2: -30, lon2: -70 }, // South American subduction
+        ];
+
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
+                const lat = (y / size) * 180 - 90;
+                const lon = (x / size) * 360 - 180;
+
+                let minDist = 1000;
+                faults.forEach(fault => {
+                    const dist = pointToLineDistance(lat, lon, fault.lat1, fault.lon1, fault.lat2, fault.lon2);
+                    minDist = Math.min(minDist, dist);
+                });
+
+                const faultProximity = Math.max(0, 1 - minDist / 5);
+                const value = Math.floor(faultProximity * 255);
+                imageData.data[idx] = value;
+                imageData.data[idx + 1] = value;
+                imageData.data[idx + 2] = value;
+                imageData.data[idx + 3] = 255;
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    // Generate liquefaction susceptibility map
+    function generateLiquefactionMap() {
+        const size = 1024;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(size, size);
+
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
+                const lat = (y / size) * 180 - 90;
+                const lon = (x / size) * 360 - 180;
+
+                // Liquefaction risk in coastal areas and river deltas
+                const coastalFactor = Math.abs(Math.sin(lat * 0.05)) * Math.abs(Math.cos(lon * 0.08));
+                const deltaFactor = Math.sin(lat * 0.2) * Math.sin(lon * 0.3);
+                const liquefaction = coastalFactor * 0.6 + Math.abs(deltaFactor) * 0.4;
+
+                const value = Math.floor(liquefaction * 255);
+                imageData.data[idx] = value;
+                imageData.data[idx + 1] = value;
+                imageData.data[idx + 2] = value;
+                imageData.data[idx + 3] = 255;
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    // Generate landslide susceptibility map (based on slope)
+    function generateCloudsTexture() {
+        const size = 1024;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(size, size);
+
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
+                // Create wispy cloud patterns
+                const noise1 = Math.sin(x * 0.05) * Math.cos(y * 0.03);
+                const noise2 = Math.sin(x * 0.03) * Math.cos(y * 0.05);
+                const cloudValue = Math.max(0, (noise1 + noise2) * 0.5 + 0.3) * Math.random();
+                const value = Math.floor(cloudValue * 255);
+                imageData.data[idx] = imageData.data[idx + 1] = imageData.data[idx + 2] = value;
+                imageData.data[idx + 3] = 255;
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    function generateLandslideMap() {
+        const size = 1024;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(size, size);
+
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
+                const lat = (y / size) * 180 - 90;
+                const lon = (x / size) * 360 - 180;
+
+                // Mountainous regions (approximated by latitude bands and noise)
+                const mountainous = Math.abs(lat) > 20 && Math.abs(lat) < 60 ? 0.7 : 0.2;
+                const noise = Math.sin(lat * 0.5) * Math.cos(lon * 0.4) * 0.3;
+                const landslide = Math.max(0, mountainous + noise);
+
+                const value = Math.floor(landslide * 255);
+                imageData.data[idx] = value;
+                imageData.data[idx + 1] = value;
+                imageData.data[idx + 2] = value;
+                imageData.data[idx + 3] = 255;
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    function pointToLineDistance(px, py, x1, y1, x2, y2) {
+        const A = px - x1;
+        const B = py - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        const param = lenSq !== 0 ? dot / lenSq : -1;
+        let xx, yy;
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        } else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        } else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+        const dx = px - xx;
+        const dy = py - yy;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function getGeoDataValue(layerName, uv, offsetU = 0, offsetV = 0) {
+        if (!geoData[layerName]) return 0;
+        const ctx = geoData[layerName];
+        const u = ((uv.x + offsetU / ctx.canvas.width) % 1) * ctx.canvas.width;
+        const v = ((1 - uv.y + offsetV / ctx.canvas.height) % 1) * ctx.canvas.height;
+        const x = Math.floor(u);
+        const y = Math.floor(v);
+        if (x < 0 || x >= ctx.canvas.width || y < 0 || y >= ctx.canvas.height) return 0;
+        const pixelData = ctx.getImageData(x, y, 1, 1).data;
+        return pixelData[0]; 
+    }
+
+    // USGS Earthquake API integration
+    async function fetchUSGSSeismicData(lat, lon) {
+        const cacheKey = `${lat.toFixed(2)}_${lon.toFixed(2)}`;
+        if (usgsDataCache[cacheKey]) {
+            return usgsDataCache[cacheKey];
+        }
+
+        const radius = 100; // km
+        const starttime = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const endtime = new Date().toISOString().split('T')[0];
+
+        try {
+            const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude=${lat}&longitude=${lon}&maxradiuskm=${radius}&starttime=${starttime}&endtime=${endtime}&minmagnitude=4.5`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            const earthquakes = data.features || [];
+            const maxMagnitude = earthquakes.length > 0 
+                ? Math.max(...earthquakes.map(eq => eq.properties.mag))
+                : 0;
+
+            const result = {
+                count: earthquakes.length,
+                maxMagnitude: maxMagnitude,
+                historicalActivity: earthquakes.length > 10 ? 'High' : earthquakes.length > 3 ? 'Moderate' : 'Low'
+            };
+
+            usgsDataCache[cacheKey] = result;
+            return result;
+        } catch (error) {
+            console.warn('USGS API unavailable, using geological estimates:', error);
+            return { count: 0, maxMagnitude: 0, historicalActivity: 'Unknown' };
+        }
+    }
+
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+
+    function addEventListeners() {
+        document.getElementById('reset-button').addEventListener('click', resetSimulation);
+        const sliders = ['diameter', 'velocity', 'angle'];
+        sliders.forEach(id => {
+            const slider = document.getElementById(id);
+            const valueSpan = document.getElementById(`${id}-value`);
+            slider.addEventListener('input', () => {
+                let unit = ' m';
+                if (id === 'velocity') unit = ' km/s';
+                if (id === 'angle') unit = '°';
+                let value = slider.value;
+                if (id === 'diameter') {
+                    valueSpan.textContent = `${(value / 1000).toFixed(0)} km`;
+                } else {
+                    valueSpan.textContent = `${value}${unit}`;
+                }
+            });
+        });
+        window.addEventListener('resize', onWindowResize);
+        const globeContainer = document.getElementById('globe-container');
+        globeContainer.addEventListener('mousedown', onGlobeMouseDown);
+        globeContainer.addEventListener('mouseup', onGlobeMouseUp);
+        globeContainer.addEventListener('mousemove', onGlobeMouseMove);
+        globeContainer.addEventListener('wheel', onMouseWheel);
+
+        // Timeline tab switching
+        document.getElementById('tab-immediate').addEventListener('click', () => switchTimeline('immediate'));
+        document.getElementById('tab-1year').addEventListener('click', () => switchTimeline('1year'));
+        document.getElementById('tab-10year').addEventListener('click', () => switchTimeline('10year'));
+    }
+
+    function switchTimeline(timeline) {
+        currentTimeline = timeline;
+
+        // Update tab active states
+        document.querySelectorAll('.timeline-tab').forEach(tab => tab.classList.remove('active'));
+        document.getElementById(`tab-${timeline}`).classList.add('active');
+
+        // Update content visibility
+        document.getElementById('immediate-content').style.display = timeline === 'immediate' ? 'block' : 'none';
+        document.getElementById('1year-content').style.display = timeline === '1year' ? 'block' : 'none';
+        document.getElementById('10year-content').style.display = timeline === '10year' ? 'block' : 'none';
+
+        // Update visualization if impact has occurred
+        if (impactResults) {
+            updateVisualizationForTimeline(timeline, impactResults);
+        }
+    }
+
+    function updateVisualizationForTimeline(timeline, results) {
+        if (timeline === 'immediate') {
+            // Show seismic heatmap and waves
+            gsap.to(globe.material.uniforms.heatmapIntensity, { value: 1.0, duration: 0.5 });
+        } else if (timeline === '1year') {
+            // Fade seismic, show dust layer (simulated with reduced intensity)
+            gsap.to(globe.material.uniforms.heatmapIntensity, { value: 0.3, duration: 0.5 });
+        } else if (timeline === '10year') {
+            // Very faded, minimal effects
+            gsap.to(globe.material.uniforms.heatmapIntensity, { value: 0.1, duration: 0.5 });
+        }
+    }
+
+    function onGlobeMouseDown(e) {
+        isDragging = true;
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+    }
+
+    function onGlobeMouseUp(e) {
+        const moved = Math.abs(e.clientX - previousMousePosition.x) > 5 || Math.abs(e.clientY - previousMousePosition.y) > 5;
+        if (!moved) { handleGlobeClick(e); }
+        isDragging = false;
+    }
+
+    function onGlobeMouseMove(e) {
+        if (!isDragging) return;
+        const deltaMove = { x: e.clientX - previousMousePosition.x, y: e.clientY - previousMousePosition.y };
+        const deltaRotationQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(toRadians(deltaMove.y * 0.5), toRadians(deltaMove.x * 0.5), 0, 'XYZ'));
+        globe.quaternion.multiplyQuaternions(deltaRotationQuaternion, globe.quaternion);
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+    }
+
+    function onMouseWheel(e) {
+        camera.position.z += e.deltaY * 0.01;
+        camera.position.z = Math.max(7, Math.min(30, camera.position.z));
+    }
+
+    function onWindowResize() {
+        // Check if resized to mobile
+        if (isMobileDevice()) {
+            document.getElementById('mobile-warning').style.display = 'flex';
+            return;
+        } else {
+            document.getElementById('mobile-warning').style.display = 'none';
+        }
+
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+    }
+
+    async function handleGlobeClick(event) {
+        if (isImpacting) return;
+        const mouse = new THREE.Vector2((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObject(globe);
+
+        if (intersects.length > 0) {
+            isImpacting = true;
+
+            const worldImpactPoint = intersects[0].point;
+            const inverseMatrix = new THREE.Matrix4();
+            inverseMatrix.copy(globe.matrixWorld).invert();
+            const localImpactPoint = worldImpactPoint.clone().applyMatrix4(inverseMatrix);
+            const impactUV = intersects[0].uv;
+
+            globe.material.uniforms.impactPoint.value = localImpactPoint;
+
+            const params = getImpactParameters();
+            const latLon = pointToLatLon(localImpactPoint.normalize());
+
+            // Fetch USGS data
+            const usgsData = await fetchUSGSSeismicData(latLon.lat, latLon.lon);
+
+            const results = calculateImpactEffects(params, localImpactPoint, impactUV, usgsData);
+
+            displayResults(results, usgsData);
+
+            globe.material.uniforms.magnitude.value = results.magnitude;
+            globe.material.uniforms.anisotropyMatrix.value = results.anisotropyMatrix;
+
+            // Animate P-wave and S-wave propagation
+            const maxRadius = 15.0;
+            const pWaveDuration = 8.0; // seconds
+            const sWaveDuration = 12.0; // seconds (slower)
+
+            gsap.to(globe.material.uniforms.heatmapIntensity, { value: 1.0, duration: 2.0 });
+            gsap.to(globe.material.uniforms.waveTime, { value: 1.0, duration: 1.0 });
+
+            // P-wave animation
+            gsap.to(globe.material.uniforms.pWaveRadius, {
+                value: maxRadius,
+                duration: pWaveDuration,
+                ease: "linear"
+            });
+
+            // S-wave animation (delayed start)
+            gsap.to(globe.material.uniforms.sWaveRadius, {
+                value: maxRadius,
+                duration: sWaveDuration,
+                delay: 0.5,
+                ease: "linear"
+            });
+        }
+    }
+
+    // Standard seismological formula for moment magnitude
+    function calculateMomentMagnitude(seismicEnergy) {
+        // Mw = (2/3) * log10(Es) - 10.7
+        // Where Es is seismic energy in Joules
+        if (seismicEnergy <= 0) return 0;
+        const magnitude = (2.0 / 3.0) * Math.log10(seismicEnergy) - 10.7;
+        return Math.max(0, Math.min(10.0, magnitude));
+    }
+
+    // Airburst altitude calculation based on asteroid properties
+    function calculateAirburstAltitude(diameter, velocity, density, angle) {
+        // Empirical formula based on atmospheric entry physics
+        // Smaller, faster objects with steeper angles are more likely to airburst
+        const strengthPascals = density < 2000 ? 1e6 : (density < 4000 ? 5e6 : 2e7); // Material strength
+        const dragCoefficient = 0.5;
+        const atmosphericDensity = 1.225; // kg/m^3 at sea level
+
+        // Dynamic pressure at breakup
+        const dynamicPressure = 0.5 * atmosphericDensity * Math.pow(velocity, 2);
+
+        // Critical diameter for airburst (simplified)
+        const criticalSize = Math.pow(strengthPascals / dynamicPressure, 0.5) * 100;
+
+        if (diameter < criticalSize) {
+            // Calculate airburst altitude (km)
+            const altitude = 20 + (diameter / criticalSize) * 30.0; // 20-50 km range
+            return Math.max(5, Math.min(50, altitude));
+        }
+
+        return 0; // Ground impact
+    }
+
+    // Holsapple-Schmidt crater scaling law
+    function calculateCraterDiameter(impactorDiameter, velocity, impactorDensity, targetDensity, targetType) {
+        const g = 9.8; // m/s^2
+        const Cd = targetType === 'rock' ? 1.6 : 1.8; // Scaling constant
+
+        // Convert velocity from m/s to m/s if needed
+        const v = velocity; // Already in m/s
+        const d = impactorDiameter; // meters
+
+        // Holsapple-Schmidt scaling law
+        // D ≈ Cd * (v^2/g)^0.22 * d^0.78 * (ρt/ρi)^0.33
+        const craterDiameter = Cd * 
+            Math.pow(v * v / g, 0.22) * 
+            Math.pow(d, 0.78) * 
+            Math.pow(targetDensity / impactorDensity, 0.33);
+
+        return craterDiameter; // meters
+    }
+
+    // Thermal radiation radius calculation
+    function calculateThermalRadius(energyMegatons) {
+        // R ≈ 5 × E_MT^0.4 for third-degree burns
+        return 5.0 * Math.pow(energyMegatons, 0.4); // km
+    }
+
+    // Ejecta blanket radius
+    function calculateEjectaRadius(craterDiameter) {
+        // Continuous ejecta blanket is typically 2-3 times crater radius
+        return (craterDiameter / 2.0) * 2.5 / 1000.0; // Convert to km
+    }
+
+    // ML-based geological wave attenuation model
+    function mlGeologicalAttenuation(distance, magnitude, geologyFactor, tectonicFactor, vs30, faultProximity) {
+        // Neural network for complex wave propagation through heterogeneous geology
+        // This simulates how seismic waves are amplified/dampened by geological features
+
+        const inputs = {
+            distance: distance / 1000, // Normalize to ~0-1 range
+            magnitude: magnitude / 10,
+            geology: geologyFactor,
+            tectonic: tectonicFactor,
+            vs30: vs30 / 800,
+            fault: faultProximity
+        };
+
+        // Hidden layer 1 (6 neurons)
+        const h1_weights = [
+            [0.5, -0.3, 0.4, 0.2, -0.6, 0.3],  // distance
+            [0.8, 0.7, 0.6, 0.5, 0.4, 0.3],    // magnitude
+            [-0.4, 0.6, -0.3, 0.5, 0.2, -0.1], // geology
+            [0.3, 0.4, 0.7, -0.2, 0.5, 0.6],   // tectonic
+            [-0.7, -0.6, -0.5, -0.4, 0.3, 0.2], // vs30
+            [0.5, 0.6, 0.4, 0.8, -0.3, 0.7]    // fault
+        ];
+
+        const h1 = new Array(6).fill(0);
+        const inputArray = [inputs.distance, inputs.magnitude, inputs.geology, inputs.tectonic, inputs.vs30, inputs.fault];
+
+        for (let i = 0; i < 6; i++) {
+            for (let j = 0; j < 6; j++) {
+                h1[i] += inputArray[j] * h1_weights[j][i];
+            }
+            h1[i] = Math.tanh(h1[i]); // Activation
+        }
+
+        // Output layer (attenuation factor)
+        const output_weights = [0.6, 0.5, -0.4, 0.7, -0.3, 0.8];
+        let attenuation = 0;
+        for (let i = 0; i < 6; i++) {
+            attenuation += h1[i] * output_weights[i];
+        }
+
+        // Sigmoid activation for 0-1 range
+        attenuation = 1 / (1 + Math.exp(-attenuation));
+
+        return attenuation;
+    }
+
+    function calculateImpactEffects(params, impactPoint, uv, usgsData) {
+        const geologyValue = getGeoDataValue('geology', uv);
+
+        // Enhanced geology classification with Vs30 integration
+        let geologyType = "Sedimentary";
+        let geologyFactor = 0.4;
+        let vs30 = 300; // meters/second (soft soil)
+
+        if (geologyValue > 200) {
+            geologyType = "Crystalline Basement";
+            geologyFactor = 1.0;
+            vs30 = 800; // Hard rock
+        } else if (geologyValue > 150) {
+            geologyType = "Metamorphic";
+            geologyFactor = 0.85;
+            vs30 = 600;
+        } else if (geologyValue > 100) {
+            geologyType = "Volcanic";
+            geologyFactor = 0.7;
+            vs30 = 500;
+        } else if (geologyValue > 50) {
+            geologyType = "Sedimentary (Consolidated)";
+            geologyFactor = 0.55;
+            vs30 = 400;
+        }
+
+        // Ground amplification based on Vs30
+        const groundAmplification = Math.pow(760 / vs30, 0.8); // NEHRP amplification formula
+
+        // Slope analysis
+        const topo_center = getGeoDataValue('topography', uv);
+        const topo_right = getGeoDataValue('topography', uv, 1, 0);
+        const topo_up = getGeoDataValue('topography', uv, 0, 1);
+        const slope = Math.sqrt(Math.pow(topo_center - topo_right, 2) + Math.pow(topo_center - topo_up, 2));
+
+        const isOcean = getGeoDataValue('land', uv) < 128;
+        const tectonicProximity = getGeoDataValue('tectonic', uv);
+        const populationDensity = getGeoDataValue('population', uv);
+
+        const kineticEnergy = getKineticEnergy(params);
+
+        // Determine airburst vs ground impact
+        const densities = { stony: 3500, iron: 8000, comet: 1000 };
+        const density = densities[params.composition];
+        const airburstAltitude = calculateAirburstAltitude(params.diameter, params.velocity, density, params.angle);
+        const isAirburst = airburstAltitude > 0;
+
+        // Target density based on geology
+        const targetDensity = geologyFactor > 0.8 ? 2700 : 2400; // rock vs soil
+        const targetType = geologyFactor > 0.8 ? 'rock' : 'soil';
+
+        let magnitude, primaryThreat, seismicEnergy, airblastRadius, craterDiameter, thermalRadius, ejectaRadius;
+
+        const energyMegatons = kineticEnergy / 4.184e15;
+
+        if (isAirburst) {
+            // Airburst: primary threat is airblast, minimal seismic
+            airblastRadius = Math.pow(energyMegatons, 0.33) * 5.0; // km
+            seismicEnergy = kineticEnergy * 1e-7; // Very small seismic conversion for airburst
+            magnitude = calculateMomentMagnitude(seismicEnergy);
+            primaryThreat = `Airburst at ${airburstAltitude.toFixed(1)} km`;
+            craterDiameter = 0;
+            thermalRadius = calculateThermalRadius(energyMegatons);
+            ejectaRadius = 0;
+        } else {
+            // Ground impact: calculate crater using scaling law
+            craterDiameter = calculateCraterDiameter(
+                params.diameter,
+                params.velocity,
+                density,
+                targetDensity,
+                targetType
+            );
+
+            // Seismic energy is generated during crater formation
+            const baseEfficiency = isOcean ? 8e-5 : 5e-4;
+            seismicEnergy = kineticEnergy * baseEfficiency;
+
+            // Apply ML-based geological attenuation
+            const tectonicFactor = tectonicProximity / 255.0;
+            const faultProximity = 0; // Will be updated with real data later
+            const attenuationFactor = mlGeologicalAttenuation(0, 8, geologyFactor, tectonicFactor, vs30, faultProximity);
+            seismicEnergy *= (0.5 + attenuationFactor * 0.5); // Modulate by ML prediction
+
+            // Standard seismological formula: Mw = (2/3) * log10(Es) - 10.7
+            magnitude = calculateMomentMagnitude(seismicEnergy);
+            primaryThreat = `Mw ${magnitude.toFixed(1)} Earthquake`;
+            airblastRadius = 0;
+            thermalRadius = calculateThermalRadius(energyMegatons);
+            ejectaRadius = calculateEjectaRadius(craterDiameter);
+        }
+
+        // Anisotropic matrix for elliptical seismic wave propagation
+        const anisotropyMatrix = new THREE.Matrix3();
+
+        if (geologyFactor > 0.6) {
+            // Determine propagation direction based on geological features
+            const stretchFactor = 1.0 + (geologyFactor - 0.6) * 1.5; // Up to 2x elongation
+            const faultDirection = tectonicProximity > 128 ? tectonicProximity / 255 * Math.PI : Math.random() * Math.PI;
+
+            const cosAngle = Math.cos(faultDirection);
+            const sinAngle = Math.sin(faultDirection);
+
+            // Create rotation matrix
+            const rotationMat = new THREE.Matrix3().set(
+                cosAngle, -sinAngle, 0,
+                sinAngle, cosAngle, 0,
+                0, 0, 1
+            );
+
+            // Create scale matrix (elliptical)
+            const scaleMat = new THREE.Matrix3().set(
+                stretchFactor, 0, 0,
+                0, 1, 0,
+                0, 0, 1
+            );
+
+            // Combine: rotate, scale, rotate back
+            const invRotation = rotationMat.clone().transpose();
+            anisotropyMatrix.multiply(rotationMat).multiply(scaleMat).multiply(invRotation);
+        }
+
+        // Calculate Modified Mercalli Intensity (MMI) at epicenter
+        const mmi = calculateMMI(magnitude, 0, groundAmplification);
+
+        let {tsunamiRisk, faultRisk, airblastRisk, populationRisk, liquefactionRisk, landslideRisk, thermalRisk, ejectaRisk} = calculateSecondaryRisks(
+            magnitude, kineticEnergy, geologyFactor, tectonicProximity, 
+            populationDensity, isOcean, topo_center, usgsData, mmi, slope, vs30, thermalRadius, ejectaRadius
+        );
+
+        const latLon = pointToLatLon(impactPoint.normalize());
+
+        // Get actual population density at impact location
+        const actualPopDensity = getPopulationDensityAtPoint(latLon.lat, latLon.lon);
+
+        return {
+            magnitude, geologyType, anisotropyMatrix, mmi, groundAmplification,
+            location: `${latLon.lat.toFixed(2)}° ${latLon.lat > 0 ? 'N' : 'S'}, ${latLon.lon.toFixed(2)}° ${latLon.lon > 0 ? 'E' : 'W'}`,
+            tsunamiRisk, faultRisk, airblastRisk, populationRisk, liquefactionRisk, landslideRisk,
+            isAirburst, primaryThreat, airblastRadius, craterDiameter, thermalRisk, ejectaRisk, thermalRadius, ejectaRadius,
+            kineticEnergy, populationDensity, actualPopDensity,
+            lat: latLon.lat, lon: latLon.lon
+        };
+    }
+
+    // Calculate Modified Mercalli Intensity
+    function calculateMMI(magnitude, distance, amplification = 1.0) {
+        // Empirical relationship: MMI = 3.66 * M - 1.66 * log10(distance + 10) + 1.66
+        const baseMMI = 3.66 * magnitude - 1.66 * Math.log10(distance + 10) + 1.66;
+        const amplifiedMMI = baseMMI + Math.log10(amplification) * 2;
+        return Math.max(1, Math.min(12, Math.round(amplifiedMMI * 10) / 10));
+    }
+
+    function calculateLongTermEffects(kineticEnergy, craterDiameter, thermalRadius, magnitude, lat, lon) {
+        const energyMegatons = kineticEnergy / 4.184e15;
+
+        // Impact winter temperature drop (°C)
+        let tempDrop = 0;
+        let dustDuration = 0;
+        if (energyMegatons > 1000000) {
+            tempDrop = 15 + (energyMegatons / 10000000) * 10;
+            dustDuration = 10;
+        } else if (energyMegatons > 100000) {
+            tempDrop = 8 + (energyMegatons / 1000000) * 7;
+            dustDuration = 5;
+        } else if (energyMegatons > 10000) {
+            tempDrop = 3 + (energyMegatons / 100000) * 5;
+            dustDuration = 2;
+        }
+
+        // Get actual population density at impact point
+        const impactPopDensity = getPopulationDensityAtPoint(lat, lon);
+
+        // Calculate affected population in concentric zones
+        let totalFatalities = 0;
+        let totalDisplaced = 0;
+
+        // Zone 1: Complete destruction (crater + thermal)
+        const destructionRadius = Math.max(craterDiameter / 2000.0, thermalRadius);
+        const destructionArea = Math.PI * Math.pow(destructionRadius, 2); // km²
+        const zone1Pop = destructionArea * impactPopDensity;
+        totalFatalities += zone1Pop * 0.95; // 95% fatality rate
+
+        // Zone 2: Severe damage (2x destruction radius)
+        const severeRadius = destructionRadius * 2;
+        const severeArea = Math.PI * (Math.pow(severeRadius, 2) - Math.pow(destructionRadius, 2));
+        const zone2Pop = severeArea * impactPopDensity * 0.7; // Population density decreases with distance
+        totalFatalities += zone2Pop * 0.50; // 50% fatality rate
+        totalDisplaced += zone2Pop * 0.40; // Survivors displaced
+
+        // Zone 3: Moderate damage (5x destruction radius)
+        const moderateRadius = destructionRadius * 5;
+        const moderateArea = Math.PI * (Math.pow(moderateRadius, 2) - Math.pow(severeRadius, 2));
+        const zone3Pop = moderateArea * impactPopDensity * 0.4;
+        totalFatalities += zone3Pop * 0.10; // 10% fatality rate
+        totalDisplaced += zone3Pop * 0.60; // Most survivors displaced
+
+        // Agricultural collapse (%) based on temp drop
+        const agriCollapse = Math.min(100, tempDrop * 5);
+
+        return {
+            tempDrop: tempDrop.toFixed(1),
+            dustDuration: dustDuration > 0 ? `${dustDuration} years` : 'Minimal',
+            fatalities: totalFatalities > 1000000 ? `${(totalFatalities / 1000000).toFixed(2)}M` : `${(totalFatalities / 1000).toFixed(0)}K`,
+            displaced: totalDisplaced > 1000000 ? `${(totalDisplaced / 1000000).toFixed(2)}M` : `${(totalDisplaced / 1000).toFixed(0)}K`,
+            agriCollapse: `${agriCollapse.toFixed(0)}%`,
+            impactPopDensity: impactPopDensity.toFixed(0)
+        };
+    }
+
+    function displayResults(results, usgsData) {
+        impactResults = results;
+
+        // Immediate impact tab
+        document.getElementById('impact-location').textContent = results.location;
+        document.getElementById('impact-type').textContent = results.isAirburst ? `Airburst (${results.airblastRadius.toFixed(1)} km radius)` : 'Ground Impact';
+
+        if (results.craterDiameter > 0) {
+            const craterKm = results.craterDiameter / 1000.0;
+            document.getElementById('crater-diameter').textContent = craterKm >= 1 ? `${craterKm.toFixed(2)} km` : `${results.craterDiameter.toFixed(0)} m`;
+        } else {
+            document.getElementById('crater-diameter').textContent = 'N/A (Airburst)';
+        }
+
+        document.getElementById('thermal-radius').textContent = `${results.thermalRadius.toFixed(1)} km`;
+        document.getElementById('ejecta-radius').textContent = results.ejectaRadius > 0 ? `${results.ejectaRadius.toFixed(1)} km` : 'N/A';
+
+        document.getElementById('geology-type').textContent = results.geologyType;
+        document.getElementById('seismic-history').textContent = `${usgsData.historicalActivity} (M${usgsData.maxMagnitude.toFixed(1)} max)`;
+        document.getElementById('primary-threat').textContent = results.primaryThreat;
+
+        if (!results.isAirburst) {
+            document.getElementById('mmi-value').textContent = `${results.mmi.toFixed(1)}`;
+            document.getElementById('ground-amp').textContent = `${results.groundAmplification.toFixed(2)}x`;
+        } else {
+            document.getElementById('mmi-value').textContent = `${results.mmi.toFixed(1)} (minimal)`;
+            document.getElementById('ground-amp').textContent = 'N/A';
+        }
+
+        setRiskLevel('liquefaction-risk', results.liquefactionRisk);
+        setRiskLevel('landslide-risk', results.landslideRisk);
+        setRiskLevel('tsunami-risk', results.tsunamiRisk);
+        setRiskLevel('fault-risk', results.faultRisk);
+        setRiskLevel('airblast-risk', results.airblastRisk);
+        setRiskLevel('thermal-risk', results.thermalRisk);
+        setRiskLevel('ejecta-risk', results.ejectaRisk);
+        const popElement = document.getElementById('population-risk');
+        popElement.textContent = `${results.populationRisk} (~${results.actualPopDensity.toFixed(0)} people/km²)`;
+        popElement.className = 'risk-level';
+        if (results.populationRisk === "Low") popElement.classList.add('risk-low');
+        else if (results.populationRisk === "Moderate" || results.populationRisk === "Significant") popElement.classList.add('risk-moderate');
+        else if (results.populationRisk === "High") popElement.classList.add('risk-high');
+        else if (results.populationRisk === "Extreme") popElement.classList.add('risk-extreme');
+        else if (results.populationRisk === "Catastrophic") popElement.classList.add('risk-catastrophic');
+
+        // 1 year later calculations with actual coordinates
+        const longTerm = calculateLongTermEffects(
+            results.kineticEnergy,
+            results.craterDiameter,
+            results.thermalRadius,
+            results.magnitude,
+            results.lat,
+            results.lon
+        );
+
+        document.getElementById('temp-drop').textContent = `−${longTerm.tempDrop}°C`;
+        document.getElementById('fatalities').textContent = longTerm.fatalities;
+        document.getElementById('displaced').textContent = longTerm.displaced;
+        document.getElementById('agri-collapse').textContent = longTerm.agriCollapse;
+        document.getElementById('dust-duration').textContent = longTerm.dustDuration;
+
+        // 10 years later
+        const tempRecovery = parseFloat(longTerm.tempDrop) > 5 ? 'Partial Recovery' : 'Near Complete';
+        const atmosRecovery = parseFloat(longTerm.tempDrop) > 10 ? '60-70% recovered' : '90-95% recovered';
+
+        document.getElementById('climate-status').textContent = tempRecovery;
+        document.getElementById('atmos-recovery').textContent = atmosRecovery;
+        document.getElementById('river-changes').textContent = results.craterDiameter > 50000 ? 'High Probability' : 'Low Probability';
+
+        const geoChangesList = document.getElementById('geo-changes');
+        geoChangesList.innerHTML = '';
+        if (results.craterDiameter > 10000) {
+            geoChangesList.innerHTML += `<li>New crater basin ${(results.craterDiameter / 1000).toFixed(1)} km wide</li>`;
+        }
+        if (results.craterDiameter > 50000) {
+            geoChangesList.innerHTML += '<li>Potential river course alterations</li>';
+        }
+        if (results.magnitude > 8.5) {
+            geoChangesList.innerHTML += '<li>Regional fault reactivation</li>';
+        }
+        if (geoChangesList.innerHTML === '') {
+            geoChangesList.innerHTML = '<li class="text-gray-500">No major permanent changes</li>';
+        }
+
+        document.getElementById('info-panel').style.display = 'block';
+        document.getElementById('legend-panel').style.display = 'block';
+        switchTimeline('immediate');
+    }
+
+    function getKineticEnergy(params) {
+        const densities = { stony: 3500, iron: 8000, comet: 1000 };
+        const density = densities[params.composition];
+        const volume = (4 / 3) * Math.PI * Math.pow(params.diameter / 2, 3);
+        const initialMass = volume * density;
+        const ablationCoefficients = { stony: 0.7, comet: 0.9, iron: 0.1 };
+        const massLoss = initialMass * ablationCoefficients[params.composition] * (90 / params.angle);
+        const finalMass = initialMass - Math.min(massLoss, initialMass * 0.99);
+        return 0.5 * finalMass * Math.pow(params.velocity, 2) * Math.sin(toRadians(params.angle));
+    }
+
+    function calculateSecondaryRisks(magnitude, kineticEnergy, geologyFactor, tectonicProximity, populationDensity, isOcean, topographyValue, usgsData, mmi, slope, vs30, thermalRadius, ejectaRadius) {
+        // Liquefaction Risk (requires saturated soil, low Vs30, and strong shaking)
+        let liquefactionRisk = "Low";
+        if (vs30 < 400 && mmi >= 6.0) {
+            if (mmi >= 8.0 && vs30 < 200) liquefactionRisk = "Extreme";
+            else if (mmi >= 7.5 && vs30 < 300) liquefactionRisk = "High";
+            else if (mmi >= 7.0) liquefactionRisk = "Moderate";
+        }
+
+        // Landslide Risk (requires steep slopes and strong shaking)
+        let landslideRisk = "Low";
+        if (slope > 20 && mmi >= 6.0) {
+            if (mmi >= 8.0 && slope > 40) landslideRisk = "Extreme";
+            else if (mmi >= 7.5 && slope > 30) landslideRisk = "High";
+            else if (mmi >= 7.0) landslideRisk = "Moderate";
+        }
+
+        const tsunamiEnergyThreshold = 1e18;
+        let tsunamiRisk = "Low";
+        if (isOcean && kineticEnergy > tsunamiEnergyThreshold) {
+            const waterDepthFactor = 1 - (topographyValue / 255);
+            if (magnitude > 8.5 && waterDepthFactor > 0.6) tsunamiRisk = "Extreme";
+            else if (magnitude > 8.0 && waterDepthFactor > 0.4) tsunamiRisk = "High";
+            else if (magnitude > 7.5) tsunamiRisk = "Moderate";
+        }
+
+        let faultRisk = "Low";
+        const seismicAmplifier = 1 + (tectonicProximity / 255) * 4 + (usgsData.count / 50);
+        if (seismicAmplifier > 4.0) faultRisk = "Extreme";
+        else if (seismicAmplifier > 3.0) faultRisk = "High";
+        else if (seismicAmplifier > 2.0) faultRisk = "Moderate";
+
+        let airblastRisk = "Low";
+        const energyInMegatons = kineticEnergy / 4.184e15;
+        if (energyInMegatons > 100000) airblastRisk = "Extreme";
+        else if (energyInMegatons > 1000) airblastRisk = "High";
+        else if (energyInMegatons > 50) airblastRisk = "Moderate";
+
+        // Population density will be calculated when we have the actual impact point
+        const actualPopDensity = populationDensity * 20; // Approximate scaling from texture value
+
+        let populationRisk = "Low";
+        if (actualPopDensity > 1000 && magnitude > 7.0) populationRisk = "Catastrophic";
+        else if (actualPopDensity > 500 && magnitude > 7.0) populationRisk = "Extreme";
+        else if (actualPopDensity > 200 && magnitude > 6.5) populationRisk = "High";
+        else if (actualPopDensity > 100 && magnitude > 6.0) populationRisk = "Significant";
+        else if (actualPopDensity > 50) populationRisk = "Moderate";
+
+        // Thermal radiation risk (third-degree burns)
+        let thermalRisk = "Low";
+        if (thermalRadius > 100.0) thermalRisk = "Extreme";
+        else if (thermalRadius > 50.0) thermalRisk = "High";
+        else if (thermalRadius > 20.0) thermalRisk = "Moderate";
+
+        // Ejecta blanket risk
+        let ejectaRisk = "Low";
+        if (ejectaRadius > 50.0) ejectaRisk = "Extreme";
+        else if (ejectaRadius > 20.0) ejectaRisk = "High";
+        else if (ejectaRadius > 10.0) ejectaRisk = "Moderate";
+
+        return { tsunamiRisk, faultRisk, airblastRisk, populationRisk, liquefactionRisk, landslideRisk, thermalRisk, ejectaRisk };
+    }
+
+    function setRiskLevel(elementId, risk) {
+        const el = document.getElementById(elementId);
+        el.textContent = risk;
+        el.className = 'risk-level';
+        if (risk === "Low") el.classList.add('risk-low');
+        else if (risk === "Moderate" || risk === "Significant") el.classList.add('risk-moderate');
+        else if (risk === "High") el.classList.add('risk-high');
+        else if (risk === "Extreme") el.classList.add('risk-extreme');
+        else if (risk === "Catastrophic") el.classList.add('risk-catastrophic');
+    }
+
+    function resetSimulation() {
+        gsap.to(globe.material.uniforms.heatmapIntensity, {
+            value: 0.0,
+            duration: 1.0,
+            onComplete: () => {
+                isImpacting = false;
+                globe.material.uniforms.impactPoint.value = new THREE.Vector3(0, 10000, 0);
+                globe.material.uniforms.anisotropyMatrix.value = new THREE.Matrix3();
+                globe.material.uniforms.pWaveRadius.value = 0.0;
+                globe.material.uniforms.sWaveRadius.value = 0.0;
+                globe.material.uniforms.waveTime.value = 0.0;
+            }
+        });
+        document.getElementById('info-panel').style.display = 'none';
+        document.getElementById('legend-panel').style.display = 'none';
+        gsap.to(camera.position, { x: 0, y: 0, z: 15, duration: 1.5, onUpdate: () => camera.lookAt(0, 0, 0) });
+    }
+
+    function getImpactParameters() {
+        return {
+            diameter: parseFloat(document.getElementById('diameter').value),
+            velocity: parseFloat(document.getElementById('velocity').value) * 1000,
+            angle: parseFloat(document.getElementById('angle').value),
+            composition: document.getElementById('composition').value,
+        };
+    }
+
+    function toRadians(angle) {
+        return angle * (Math.PI / 180);
+    }
+
+    function pointToLatLon(point) {
+        const radius = 5;
+        const lat = 90 - (Math.acos(point.y / radius)) * 180 / Math.PI;
+        const lon = ((270 + (Math.atan2(point.x, point.z)) * 180 / Math.PI) % 360) - 180;
+        return { lat, lon };
+    }
+
+    init();
+
+</script>
+</body>
+</html>
