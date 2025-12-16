@@ -524,6 +524,74 @@
     let usgsDataCache = {};
     let currentTimeline = 'immediate';
     let impactResults = null;
+    let impactResults = null;
+    
+    function loadImpactDataFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('lat') && params.has('lon')) {
+            const lat = parseFloat(params.get('lat'));
+            const lon = parseFloat(params.get('lon'));
+            const diameter = parseFloat(params.get('diameter')) || 100000;
+            const velocity = parseFloat(params.get('velocity')) || 20;
+            
+            console.log('Loading impact data from URL:', {lat, lon, diameter, velocity});
+            
+            // Auto-set parameters in UI
+            document.getElementById('diameter').value = diameter;
+            document.getElementById('diameter-value').textContent = `${(diameter/1000).toFixed(0)} km`;
+            document.getElementById('velocity').value = velocity;
+            document.getElementById('velocity-value').textContent = `${velocity} km/s`;
+            
+            // Show notification
+            alert(`Impact data loaded from asteroid simulator!\n\nLocation: ${lat.toFixed(2)}°, ${lon.toFixed(2)}°\nDiameter: ${(diameter/1000).toFixed(1)} km\nVelocity: ${velocity} km/s\n\nClick anywhere on the globe to simulate the impact at this location.`);
+            
+            // Auto-trigger impact at location after a delay
+            setTimeout(() => {
+                if (!globe || !scene || !camera) {
+                    console.warn('Scene not ready, retrying...');
+                    setTimeout(loadImpactDataFromURL, 1000);
+                    return;
+                }
+                
+                // Convert lat/lon to 3D point on globe
+                const phi = (90 - lat) * Math.PI / 180;
+                const theta = (lon + 180) * Math.PI / 180;
+                const radius = 5; // Globe radius
+                
+                const impactPoint = new THREE.Vector3(
+                    radius * Math.sin(phi) * Math.cos(theta),
+                    radius * Math.cos(phi),
+                    radius * Math.sin(phi) * Math.sin(theta)
+                );
+                
+                // Set impact point
+                globe.material.uniforms.impactPoint.value = impactPoint;
+                
+                // Zoom camera to impact location
+                const cameraDistance = 12;
+                camera.position.set(
+                    impactPoint.x * 2.5,
+                    impactPoint.y * 2.5,
+                    impactPoint.z * 2.5
+                );
+                camera.lookAt(impactPoint);
+                
+                // Trigger simulation
+                const fakeEvent = {
+                    latlng: { lat, lng: lon }
+                };
+                
+                // Small delay to let camera settle
+                setTimeout(() => {
+                    handleGlobeClick({
+                        clientX: window.innerWidth / 2,
+                        clientY: window.innerHeight / 2
+                    });
+                }, 500);
+                
+            }, 2000);
+        }
+    }
 
     // Mobile detection
     function isMobileDevice() {
@@ -614,6 +682,7 @@
         camera.position.z = 15;
         addEventListeners();
         animate();
+        loadImpactDataFromURL();
     }
 
     function setupGeoData(name, texture) {
@@ -1716,4 +1785,5 @@
 
 </script>
 </body>
+
 </html>
