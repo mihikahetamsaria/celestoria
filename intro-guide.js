@@ -1,4 +1,4 @@
-// Tour Guide System - Non-overlapping, smart positioning
+3// Tour Guide System - Non-overlapping, smart positioning
 (function() {
     let currentStep = 0;
     let tourActive = false;
@@ -254,17 +254,35 @@
         document.querySelectorAll('.tour-highlight').forEach(el => el.remove());
         localStorage.setItem('celestoria_tour_completed', 'true');
     }
-
+    
+    function checkAndStartTour() {
+        const tourCompleted = localStorage.getItem('celestoria_tour_completed');
+        const loadingElement = document.getElementById('loading');
+        if (loadingElement && loadingElement.style.display !== 'none') {
+            setTimeout(checkAndStartTour, 500);
+            return;
+        }
+        if (typeof scene === 'undefined' || !scene) {
+            setTimeout(checkAndStartTour, 500);
+            return;
+        }3
+        if (!tourCompleted) {
+            startTour();
+        }
+    }
     // Auto-start tour on first visit
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(checkAndStartTour, 2000);
+        });
+    } else {
+        setTimeout(checkAndStartTour, 2000);
+    }
+
+    // Also check after window load
     window.addEventListener('load', () => {
-        setTimeout(() => {
-            const tourCompleted = localStorage.getItem('celestoria_tour_completed');
-            if (!tourCompleted && document.getElementById('loading').style.display === 'none') {
-                startTour();
-            }
-        }, 1000);
+        setTimeout(checkAndStartTour, 2500);
     });
 
-    // Expose to global scope for manual trigger
     window.startCelestoriaTour = startTour;
 })();
