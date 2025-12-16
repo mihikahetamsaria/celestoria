@@ -2215,13 +2215,14 @@ function createAsteroidBelt(asteroidData) {
 
         const actualDiameterKm = data.diameter;
         const size = 0.3 + Math.log(actualDiameterKm + 1) * 0.3;
-        const geometry = new THREE.SphereGeometry(size, 8, 8);
+        const geometry = new THREE.IcosahedronGeometry(size, 1);
 
         const position = geometry.attributes.position;
         const vertex = new THREE.Vector3();
+        
         for (let i = 0; i < position.count; i++) {
             vertex.fromBufferAttribute(position, i);
-            const noise = (Math.random() - 0.5) * 0.6;
+            const noise = (Math.random() - 0.5) * 0.8;
             vertex.addScaledVector(vertex.clone().normalize(), noise);
             position.setXYZ(i, vertex.x, vertex.y, vertex.z);
         }
@@ -2382,6 +2383,7 @@ function updateAsteroidWithGravity(asteroidMesh, dt) {
 function updateAsteroidKeplerian(asteroidMesh) {
     const data = asteroidMesh.userData;
     const override = asteroidOverrides.get(data.pdes) || {};
+    asteroidMesh.visible = true;
 
     if (data.rad === undefined) {
         data.rad = {
@@ -2911,7 +2913,7 @@ function checkEarthCollision(asteroidMesh) {
     if (distance < impactThreshold) {
         isPaused = true;
         collisionDetected = true;
-        asteroidMesh.visible = false;
+        asteroidMesh.material.emissive.setHex(0xff0000);
 
         // Calculate exact impact point on Earth's surface
         const impactDirection = new THREE.Vector3().subVectors(asteroidPosition, earthPosition).normalize();
@@ -2930,21 +2932,38 @@ function checkEarthCollision(asteroidMesh) {
         const energyJoules = 0.5 * mass * Math.pow(velocityMS, 2);
         const energyMegatons = energyJoules / 4.184e15;
 
-        alert(`🚨 CATASTROPHIC IMPACT DETECTED!\n\n` +
-              `Asteroid: ${asteroidMesh.userData.name || asteroidMesh.userData.pdes}\n` +
-              `Impact Time: ${simDay.toFixed(1)} days (${(simDay/365.25).toFixed(2)} years)\n\n` +
-              `IMPACT COORDINATES:\n` +
-              `Latitude: ${impactCoords.latitude.toFixed(2)}°\n` +
-              `Longitude: ${impactCoords.longitude.toFixed(2)}°\n\n` +
-              `IMPACT PARAMETERS:\n` +
-              `Diameter: ${asteroidMesh.userData.actualDiameter.toFixed(1)} km\n` +
-              `Mass: ${(mass / 1e12).toExponential(2)} × 10¹² kg\n` +
-              `Velocity: ${velocityKMS.toFixed(2)} km/s\n` +
-              `Estimated Energy: ${energyMegatons.toExponential(2)} megatons TNT\n\n` +
-              `This impact would cause catastrophic devastation.`);
-        
-        zoomToImpact(impactPoint, earthPosition);
-    }
+         window.impactData = {
+            asteroidName: asteroidMesh.userData.name || asteroidMesh.userData.pdes,
+            latitude: impactCoords.latitude,
+            longitude: impactCoords.longitude,
+            diameter: asteroidMesh.userData.actualDiameter,
+            mass: mass,
+            velocity: velocityKMS,
+            energy: energyMegatons,
+            impactTime: simDay
+        };
+
+        const userChoice = confirm(
+            `🚨 CATASTROPHIC IMPACT DETECTED!\n\n` +
+            `Asteroid: ${window.impactData.asteroidName}\n` +
+            `Impact Time: ${simDay.toFixed(1)} days (${(simDay/365.25).toFixed(2)} years)\n\n` +
+            `IMPACT COORDINATES:\n` +
+            `Latitude: ${impactCoords.latitude.toFixed(2)}°\n` +
+            `Longitude: ${impactCoords.longitude.toFixed(2)}°\n\n` +
+            `IMPACT PARAMETERS:\n` +
+            `Diameter: ${window.impactData.diameter.toFixed(1)} km\n` +
+            `Mass: ${(mass / 1e12).toExponential(2)} × 10¹² kg\n` +
+            `Velocity: ${velocityKMS.toFixed(2)} km/s\n` +
+            `Estimated Energy: ${energyMegatons.toExponential(2)} megatons TNT\n\n` +
+            `This impact would cause catastrophic devastation.\n\n` +
+            `Click OK to analyze seismic effects, or Cancel to stay here.`
+        );
+
+        if (userChoice) {
+            window.location.href = `seismic.html?lat=${impactCoords.latitude}&lon=${impactCoords.longitude}&diameter=${window.impactData.diameter * 1000}&velocity=${velocityKMS}`;
+        } else {
+            zoomToImpact(impactPoint, earthPosition);
+        }
 }
 
 function zoomToImpact(impactPoint, earthPosition) {
@@ -3071,10 +3090,11 @@ function applyKineticImpactor(asteroidMesh) {
             const impactVelocity = 6500; // m/s
             const momentumTransfer = impactorMass * impactVelocity;
             const velocityChange = momentumTransfer / asteroidMass;
+            const velocityChangeSim = velocityChangeMS * DAY_TO_S / (AU_TO_M / AU_SCALE);
             
             // Apply velocity change to asteroid
             const deflectionDirection = new THREE.Vector3(0.002, 0.001, -0.003).normalize();
-            const deflectionVector = deflectionDirection.multiplyScalar(velocityChange / 10000);
+            const deflectionVector = deflectionDirection.multiplyScalar(velocityChangeSim);
             asteroidMesh.userData.velocity.add(deflectionVector);
             
             // Visual feedback - asteroid glows
@@ -3085,6 +3105,9 @@ function applyKineticImpactor(asteroidMesh) {
             
             // Show results
             setTimeout(() => {
+                const velocityChangeKMS = velocityChangeMS / 1000;
+                const orbitShiftKm = velocityChangeMS * 86400 * 30;
+                
                 alert(`✅ KINETIC IMPACTOR SUCCESS!\n\n` +
                       `Mission Parameters:\n` +
                       `Impactor Mass: ${impactorMass} kg\n` +
@@ -3445,15 +3468,19 @@ function animate() {
         updatePlanet(neptune, orbitalParams.neptune, simDay);
         
         asteroidMeshes.forEach(asteroid => {
-            if (gravityEnabled) {
-                updateAsteroidWithGravity(asteroid, dt);
-                applyYarkovskyForce(asteroid);
-            } else {
-                updateAsteroidKeplerian(asteroid);
+            // FIXED: Continue updating all asteroids even after collision
+            if (asteroid.visible) {
+                if (gravityEnabled) {
+                    updateAsteroidWithGravity(asteroid, dt);
+                    applyYarkovskyForce(asteroid);
+                } else {
+                    updateAsteroidKeplerian(asteroid);
+                }
             }
         });
         
-        if (asteroidMeshes.selected) {
+        // FIXED: Only check collision if not already detected
+        if (asteroidMeshes.selected && !collisionDetected) {
             checkEarthCollision(asteroidMeshes.selected);
             
             if (selectedAsteroidLabel) {
@@ -3462,7 +3489,6 @@ function animate() {
                 selectedAsteroidLabel.position.copy(labelPos);
             }
 
-            // Track asteroid with camera if tracking is enabled
             if (trackAsteroid) {
                 const asteroidPos = asteroidMeshes.selected.position.clone();
                 const offset = new THREE.Vector3(15, 10, 15);
@@ -3494,3 +3520,4 @@ function onWindowResize() {
 
 
 init();
+
