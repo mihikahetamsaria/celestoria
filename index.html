@@ -218,5 +218,25 @@
 
     <script src="collision.js"></script>
     <script src="intro-guide.js"></script>
+    <script>
+        // Handle incoming navigation from other simulators
+        if (window.location.search) {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('fromImpact')) {
+                setTimeout(() => {
+                    alert('Impact data loaded. Select an asteroid to see the impact scenario.');
+                }, 2000);
+            }
+        }
+        
+        // Helper function to navigate to other simulators with impact data
+        window.goToSeismicSim = function(lat, lon, diameter, velocity) {
+            window.location.href = `seismic.html?lat=${lat}&lon=${lon}&diameter=${diameter}&velocity=${velocity}`;
+        };
+        
+        window.goToTsunamiSim = function(lat, lon, diameter, velocity) {
+            window.location.href = `tsunami.html?lat=${lat}&lon=${lon}&diameter=${diameter}&velocity=${velocity}`;
+        };
+    </script>
 </body>
 </html>
