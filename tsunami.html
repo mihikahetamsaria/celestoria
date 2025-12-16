@@ -252,9 +252,65 @@
             noWrap: true // MODIFIED: Ensures map does not repeat.
         }).addTo(map);
 
-        let impactMarker = null, impactLocation = null, heatmapLayer = null,
+       let impactMarker = null, impactLocation = null, heatmapLayer = null,
             landGeoJSON = null, legendControl = null, arrowLayers = [],
             bathymetryImageData = null, simulationWorker = null;
+
+        // FIXED: Handle URL parameters from asteroid simulator
+        function loadImpactDataFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('lat') && urlParams.has('lon')) {
+                const lat = parseFloat(urlParams.get('lat'));
+                const lng = parseFloat(urlParams.get('lon'));
+                const diameter = parseFloat(urlParams.get('diameter')) || 200;
+                const velocity = parseFloat(urlParams.get('velocity')) || 20;
+                
+                console.log('Loading impact data from URL:', {lat, lng, diameter, velocity});
+                
+                // Auto-set parameters in UI
+                ui.diameterInput.value = diameter;
+                ui.diameterSlider.value = diameter;
+                ui.velocityInput.value = velocity;
+                ui.velocitySlider.value = velocity;
+                
+                // Show notification
+                alert(`Impact data loaded from asteroid simulator!\n\nLocation: ${lat.toFixed(2)}°, ${lng.toFixed(2)}°\nDiameter: ${diameter} m\nVelocity: ${velocity} km/s\n\nThe map will zoom to the impact location. Click "Simulate Impact" to see tsunami effects.`);
+                
+                setTimeout(() => {
+                    // Zoom map to impact location
+                    map.setView([lat, lng], 6);
+                    
+                    // Set impact location
+                    impactLocation = {lat, lng};
+                    
+                    // Create impact marker
+                    if (impactMarker) map.removeLayer(impactMarker);
+                    impactMarker = L.marker(impactLocation, {
+                        icon: L.divIcon({ 
+                            className: 'custom-div-icon', 
+                            html: `<div style="position:relative"><div class="w-10 h-10 border-4 border-cyan-500 rounded-full bg-cyan-500 bg-opacity-30 animate-pulse"></div><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:16px;height:16px;background:#06b6d4;border-radius:50%"></div></div>`, 
+                            iconSize: [40,40], 
+                            iconAnchor: [20,20] 
+                        })
+                    }).addTo(map);
+                    
+                    // Update location display
+                    document.getElementById('location-info').innerHTML = `<span class="font-mono text-cyan-300">Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}</span>`;
+                    
+                    // Enable simulate button
+                    ui.simulateBtn.disabled = false;
+                    
+                    // Optionally auto-run simulation after 2 seconds
+                    setTimeout(() => {
+                        const autoRun = confirm('Would you like to automatically run the tsunami simulation now?');
+                        if (autoRun) {
+                            runSimulation();
+                        }
+                    }, 1000);
+                    
+                }, 1000);
+            }
+        }
 
         // Load land.geojson (make sure this file exists)
         fetch('land.geojson')
@@ -328,6 +384,7 @@
 
         ui.simulateBtn.addEventListener('click', () => { if (impactLocation) runSimulation(); });
         ui.clearBtn.addEventListener('click', clearSimulation);
+        loadImpactDataFromURL();
 
         function getDistanceToShoreline(lat, lng, landFeatures, CONFIG) {
             if (!landFeatures || !landFeatures.features || landFeatures.features.length === 0) return 1000;
@@ -580,4 +637,5 @@
     });
     </script>
 </body>
+
 </html>
